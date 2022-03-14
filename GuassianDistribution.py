@@ -13,54 +13,24 @@ import math as m
 import sys
 from skimage import data, io, filters as sk
 
-# RGB color reader orange
-# colorImg = cv2.imread("Frame0064.png")
-# orangeFilter = cv2.inRange(colorImg,(209, 122, 9), (255,165,0))
-# cv2.imshow("orange",orangeFilter)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
-
-# HSV color reader orange
-# img = cv2.imread("Frame0064.png")
-# hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-# mask = cv2.inRange(hsv,(10, 100, 20), (25, 255, 255) )
-# cv2.imshow("orange", mask)
-# cv2.waitKey()
-# cv2.destroyAllWindows()
-
-# 4.1
-# cap = cv2.VideoCapture('Vid.mp4')
-# while(cap.isOpened()):
-#     ret, frame = cap.read()
-#     if ret==True:
-
-#         threshed = cv2.inRange(frame,(10, 100, 20), (25, 255, 255))
-#         # newFrame = np.array(threshed)
-
-#         cv2.imshow('newFrame',threshed)
-#         if cv2.waitKey(1) & 0xFF == ord('q'):
-#             break
-#     else:
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
 
 img = cv2.imread("Frame0064.png")
 inputMask = cv2.imread("Label0064.png")
+
+# Creating mask and finding the mean pixel values and the deviation matrix
 maskOutput = cv2.bitwise_and(img,inputMask)
 means,devs = cv2.meanStdDev(maskOutput,mask=inputMask[:,:,0])
 print('means: ',means)
 print("devs: ",devs)
-totalPix = 76800
+totalPix = 76800 #Number of pixels in each frame of the video
 diff = np.zeros((3,1))
 
+# looping through the video frame by frame
 cap = cv2.VideoCapture('Vid.mp4')
 while(cap.isOpened()):
     ret, frame = cap.read()
     if ret==True:
         img2 = Image.fromarray(frame)
-        # img2 = PIL.Image.open(frame)
         
         pix = img2.load()
         sumSigma = np.zeros((3,3))
@@ -72,7 +42,8 @@ while(cap.isOpened()):
                 total = np.dot(diff,np.transpose(diff))
                 sumSigma+=total
         finalSigma = sumSigma/totalPix
-        # print(finalSigma)
+        
+#       looping through each frame to find x(rgb values of each pixel)-mu(the average pixel value from the mask)
         for y in range(0,240):
             for x in range(0,320):
                 pixel2 = pix[x,y]
@@ -80,8 +51,12 @@ while(cap.isOpened()):
                 diff2 = np.subtract(x_i2,means)
                 calc1 = np.dot(np.transpose(diff2),np.linalg.inv(finalSigma))
                 calc2 = -1/2*np.dot(calc1,diff2)
+                
+#               calculating final certainty that pixel is an orange pixel and that it is part of the barrel
                 finalCertainty = m.pow(m.e,calc2)
                 print(finalCertainty)
+                
+#                Assigning a black or white pixel based on the certainty value
                 if(finalCertainty<=0.5):
                     value = (0,0,0)
                     img2.putpixel((x, y), value)
